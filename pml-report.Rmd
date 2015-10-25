@@ -1,0 +1,91 @@
+---
+title: "Predicting Workout Classes"
+author: "Pravesh Koirala"
+date: "Sunday, October 25, 2015"
+output: html_document
+---
+
+## Introduction
+
+Our purpose in this project is to predict, according to the given data, the types (classe) of workout. The related data is Weightlifting Dataset which can be obtained from this [website](http://groupware.les.inf.puc-rio.br/har).
+
+The dataset is collected by a group of enthusiast with the aid of devices like Jawbone Up, Nike FuelBand, and Fitbit. The information collected from these gadgets are stored and labelled into five classes ranging from Class A to Class E. Our objective in this exercise is to train a model using the training data and then apply the train model to predict twenty different test instances.
+
+## Obtaining Data
+
+The data can be obtained from these two links:
+
+-  [Training Data](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv) saved as pml-training.csv
+-  [Test Data](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv) saved as pml-testing.csv
+
+## Cleaning Data
+
+After having downloaded both the training and test data, we first begin by loading and overviewing the data.
+
+```{r, results='hide'}
+set.seed(1025)
+
+train_data <- read.csv("pml-training.csv")
+View(train_data)
+summary(train_data)
+```
+
+While the summary is not shown due to it being lengthy, it can be inferred from the table and the summary output that not all of the variables in the training data are useful in this scenario. In fact, many of the columns are filled with NAs and blank values. Thus, it is logical to simply cut these values off from the dataset and create a new dataset with complete values that could be useful for our analysis.
+
+By inspection, these values were found to fulfill the above mentioned criteria.
+
+```{r}
+useful_vars <- c('roll_belt', 'pitch_belt', 'yaw_belt', 'total_accel_belt', 'gyros_belt_x', 'gyros_belt_y', 'gyros_belt_z', 'accel_belt_x', 'accel_belt_y', 'accel_belt_z', 'magnet_belt_x', 'magnet_belt_y', 'magnet_belt_z', 'roll_arm', 'pitch_arm', 'yaw_arm', 'total_accel_arm', 'gyros_arm_x', 'gyros_arm_y', 'gyros_arm_z', 'accel_arm_x', 'accel_arm_y', 'accel_arm_z', 'magnet_arm_x', 'magnet_arm_y', 'magnet_arm_z', 'roll_dumbbell', 'pitch_dumbbell', 'yaw_dumbbell')
+
+classes <- train_data$classe
+train_data <- train_data[, useful_vars]
+
+```
+
+Now that we have cleaned our dataset, we can proceed to model building.
+
+## Model building
+
+First we load the appropriate packages and split data into training and cross-validation.
+
+```{r}
+library(caret)
+library(randomForest)
+
+inTrain <- createDataPartition(classes, p=0.7, list=F)
+
+# Train
+trainX <- train_data[inTrain, ]
+trainY <- classes[inTrain]
+
+# Cross validation
+testX <- train_data[-inTrain, ]
+testY <- classes[-inTrain]
+```
+
+Now we proceed to train our model using a random forest model. First we use the entire variable that is available to us and then we proceed to trim the un-needed variables afterwards.
+
+```{r, cache=TRUE}
+
+train_obj <- train(trainY ~ ., data=trainX, method = 'rf', trControl=trainControl(method="cv",number=5))
+
+train_obj
+
+confusionMatrix(predict(train_obj, testX), testY)
+```
+
+As can be seen, using cross-validation, we select a random forest with mtry=15. Applying that model in the test set, we obtain an accuracy of over 98% which is a very impressive score.
+
+## Prediction
+
+Now that we have our model, we can predict the twenty test cases.
+
+```{r}
+test_data <- read.csv("pml-testing.csv")
+predictions <- predict(train_obj, test_data)
+predictions
+```
+
+## Conclusion
+
+In this way, using cross validation with five folds, we constructed a random forest with mtry=15. Using the model, we found out-of-sample accuracy to be above 98% and thus used the model to predict twenty given test cases.
